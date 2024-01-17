@@ -6,7 +6,7 @@ import json
 import os
 import sys
 from collections.abc import Iterator
-
+import logging
 import web
 
 from scripts.solr_builder.solr_builder.fn_to_cli import FnToCLI
@@ -15,6 +15,7 @@ sys.path.insert(0, ".")  # Enable scripts/copydocs.py to be run.
 import scripts._init_path
 import scripts.tests.test_copydocs
 from openlibrary.api import OpenLibrary, marshal
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
 __version__ = "0.2"
 
@@ -81,13 +82,22 @@ class Disk:
             path = os.path.join(self.root, doc['key'][1:])
             if doc['type']['key'] == '/type/template':
                 path = path.replace(".tmpl", ".html")
-                write(path, doc['body'])
+                try:
+                    write(path, doc['body'])
+                except Exception as e:
+                    logging.error(f"Failed to save template {doc['key']}: {e}")
             elif doc['type']['key'] == '/type/macro':
                 path = path + ".html"
-                write(path, doc['macro'])
+                try:
+                    write(path, doc['macro'])
+                except Exception as e:
+                    logging.error(f"Failed to save macro {doc['key']}: {e}")
             else:
                 path = path + ".json"
-                write(path, json.dumps(doc, indent=2))
+                try:
+                    self.write(path, doc['macro'])
+                except Exception as e:
+                    logging.error(f"Failed to save macro {doc['key']}: {e}")
 
 
 def expand(server: Disk | OpenLibrary, keys: Iterator):
@@ -386,4 +396,7 @@ def main(
 
 
 if __name__ == '__main__':
-    FnToCLI(main).run()
+    try:
+        FnToCLI(main).run()
+    except Exception as e:
+        logging.error(f"Unhandled exception in main: {e}")
